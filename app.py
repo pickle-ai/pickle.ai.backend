@@ -139,6 +139,8 @@ test_cases = [
 
 #     return jsonify({"message": "\n".join(results)})
 
+retriever = load_and_prepare_docs()
+rag_chain = build_rag_chain(retriever)
 
 def validate_code(users_code):
     return True # replcae with actual code validation logic using API
@@ -157,9 +159,6 @@ def submit_code():
 @app.route('/improve', methods=['GET'])
 def improve_code(users_code):
     # Pperform RAG for improvements
-    retriever = load_and_prepare_docs()
-    rag_chain = build_rag_chain(retriever)
-
     prompt = f"Suggest improvements for the following code: {users_code}"
     suggestions = rag_chain.invoke(prompt)
     return jsonify({'message': suggestions})
@@ -167,9 +166,6 @@ def improve_code(users_code):
 @app.route('/help', methods=['GET'])
 def help_code(users_code):
     # Perform RAG for help
-    retriever = load_and_prepare_docs()
-    rag_chain = build_rag_chain(retriever)
-
     prompt = f"Suggest corrections to fix the following code: {users_code}"
     corrections = rag_chain.invoke(prompt)
     return jsonify({'message': corrections})
