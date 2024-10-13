@@ -3,7 +3,6 @@
 
 from flask import Flask, request, jsonify
 from pymongo import MongoClient
-from sentence_transformers import SentenceTransformer
 import json
 
 import subprocess
@@ -30,14 +29,13 @@ nest_asyncio.apply()
 
 openai_api_key = os.getenv("OPENAI_API_KEY")
 mongo_connection_string = os.getenv("MONGODB_CONNECTION_STRING")
+langchain_api_key = os.getenv("LANGCHAIN_API_KEY")
 
 # MongoDB setup
 client = MongoClient(mongo_connection_string)
 db = client['leetcode']
 collection = db['solutions']
 
-# Load the SentenceTransformer model for embeddings
-model = SentenceTransformer('all-MiniLM-L6-v2')
 llm = ChatOpenAI(model="gpt-4o-mini", api_key=openai_api_key)
 
 # Load documents from MongoDB and prepare for RAG
@@ -156,14 +154,16 @@ def submit_code():
     else:
         return help_code(users_code) 
 
-@app.route('/improve', methods=['GET'])
-def improve_code(users_code):
+@app.route('/improve', methods=['POST'])
+def improve_code():
+    print('POST /improve request')
     # Pperform RAG for improvements
+    users_code = request.json.get('users_code')
     prompt = f"Suggest improvements for the following code: {users_code}"
     suggestions = rag_chain.invoke(prompt)
     return jsonify({'message': suggestions})
 
-@app.route('/help', methods=['GET'])
+@app.route('/help', methods=['POST'])
 def help_code(users_code):
     # Perform RAG for help
     prompt = f"Suggest corrections to fix the following code: {users_code}"
