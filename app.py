@@ -8,7 +8,6 @@ import json
 
 import subprocess
 
-
 from langchain_openai import ChatOpenAI
 from langchain import hub
 from langchain_chroma import Chroma
@@ -20,24 +19,31 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 import nest_asyncio
 
 
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
 app = Flask(__name__)
 
 nest_asyncio.apply()
 
+openai_api_key = os.getenv("OPENAI_API_KEY")
+mongo_connection_string = os.getenv("MONGODB_CONNECTION_STRING")
 
 # MongoDB setup
-client = MongoClient('mongodb+srv://vickyye:R7GMsZDqY1vRowQb@leetcodeans.uh2nk.mongodb.net/?retryWrites=true&w=majority&appName=leetcodeans')
+client = MongoClient(mongo_connection_string)
 db = client['leetcode']
 collection = db['solutions']
 
 # Load the SentenceTransformer model for embeddings
 model = SentenceTransformer('all-MiniLM-L6-v2')
-llm = ChatOpenAI(model="gpt-4o-mini")
+llm = ChatOpenAI(model="gpt-4o-mini", api_key=openai_api_key)
 
 # Load documents from MongoDB and prepare for RAG
 def load_and_prepare_docs():
     loader = MongodbLoader(
-        connection_string="mongodb+srv://vickyye:R7GMsZDqY1vRowQb@leetcodeans.uh2nk.mongodb.net/?retryWrites=true&w=majority&appName=leetcodeans", 
+        connection_string=mongo_connection_string,
         db_name="leetcode",
         collection_name="solutions",
         field_names=["solution", "problem_id"]
@@ -78,61 +84,60 @@ test_cases = [
 ]
 
 # When the user submits code check against the test cases
-@app.route('/submit-code', methods=['POST'])
-def submit_code():
-    data = request.get_json()
-    users_code = data['code']
-    users_lang = data['lang']
+# @app.route('/submit-code', methods=['POST'])
+# def submit_code():
+#     data = request.get_json()
+#     users_code = data['code']
+#     users_lang = data['lang']
 
-    # TODO: do something here
-    PISTON_EXECUTE_URL = 'https://emkc.org/api/v2/piston/execute'
-    lang_to_file_name = {
-        'py': 'main.py',
-        'cpp': 'main.cpp',
-        'java': 'Solution.java'
-    }
+#     # TODO: do something here
+#     PISTON_EXECUTE_URL = 'https://emkc.org/api/v2/piston/execute'
+#     lang_to_file_name = {
+#         'py': 'main.py',
+#         'cpp': 'main.cpp',
+#         'java': 'Solution.java'
+#     }
 
-    # request payload
-    request_payload = {
-        "language" : users_lang,
-        "source" : users_code,
-        "stdin" : "",
-        "expected_output" : "",
-    }
+#     # request payload
+#     request_payload = {
+#         "language" : users_lang,
+#         "source" : users_code,
+#         "stdin" : "",
+#         "expected_output" : "",
+#     }
 
-    results = []
+#     results = []
 
-    for test in test_cases:
-        # Prepare input data for the test case
-        input_data = json.dumps(test['input'])
-        expected_output = json.dumps(test['expected'])
+#     for test in test_cases:
+#         # Prepare input data for the test case
+#         input_data = json.dumps(test['input'])
+#         expected_output = json.dumps(test['expected'])
 
-        # update stdin and expected output
-        request_payload['stdin'] = input_data
-        request_payload['expected_output'] = expected_output
+#         # update stdin and expected output
+#         request_payload['stdin'] = input_data
+#         request_payload['expected_output'] = expected_output
 
-        try:
-            # send request to Piston API
-            response = request.post(PISTON_EXECUTE_URL, json = request_payload)
-            response_data = response.json()
+#         try:
+#             # send request to Piston API
+#             response = request.post(PISTON_EXECUTE_URL, json = request_payload)
+#             response_data = response.json()
 
-            # check if it was successful
-            if response_data.get('status') == 'success':
-                user_output = response_data['output'].strip()
-                user_output_json = json.loads(user_output)
+#             # check if it was successful
+#             if response_data.get('status') == 'success':
+#                 user_output = response_data['output'].strip()
+#                 user_output_json = json.loads(user_output)
 
-                # compare the users output with the expected output
-                if user_output_json == test['expected']:
-                    results.append(f"The test case with input {test['input']} passed.")
-                else:
-                    results.append(f"The test case with input {test['input']} failed: expected {expected_output}, got {user_output}")
-            else:
-                results.append(f"Error executing code: {response_data.get('message', 'Unknown error')}")
-        except Exception as e:
-            results.append(f"Error running test case with input {test['input']}: {str(e)}")
+#                 # compare the users output with the expected output
+#                 if user_output_json == test['expected']:
+#                     results.append(f"The test case with input {test['input']} passed.")
+#                 else:
+#                     results.append(f"The test case with input {test['input']} failed: expected {expected_output}, got {user_output}")
+#             else:
+#                 results.append(f"Error executing code: {response_data.get('message', 'Unknown error')}")
+#         except Exception as e:
+#             results.append(f"Error running test case with input {test['input']}: {str(e)}")
 
-    return jsonify({"message": "\n".join(results)})
-
+#     return jsonify({"message": "\n".join(results)})
 
 
 def validate_code(users_code):
@@ -143,11 +148,11 @@ def submit_code():
     users_code = request.json.get('code')
 
     # Check if the user's code submission was correct
-    is_correct = validate_code(users_code) # implement later
+    is_correct = validate_code(users_code)
     if is_correct:
-        return improve_code(users_code) # implement later
+        return improve_code(users_code) 
     else:
-        return help_code(users_code) # implement later
+        return help_code(users_code) 
 
 @app.route('/improve', methods=['GET'])
 def improve_code(users_code):
